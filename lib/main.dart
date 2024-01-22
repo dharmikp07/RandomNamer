@@ -44,6 +44,11 @@ class MyAppState extends ChangeNotifier {
     }
     notifyListeners();
   }
+
+  void removeFavorite(WordPair pair) {
+    favorites.remove(pair);
+    notifyListeners();
+  }
 }
 
 class MyHomePage extends StatefulWidget {
@@ -52,55 +57,40 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  var selectedIndex = 0;
+  int selectedIndex = 0;
+  static List<Widget> _widgetOptions = <Widget>[
+    GeneratorPage(),
+    FavoritesPage(),
+  ];
+
+  void _onItemTapped(int index) {
+    setState(() {
+      selectedIndex = index;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-    Widget page;
-    switch (selectedIndex) {
-      case 0:
-        page = GeneratorPage();
-      case 1:
-        page = FavoritesPage();
-      default:
-        throw UnimplementedError('no widget for $selectedIndex');
-    }
-
-    return LayoutBuilder(builder: (context, constraints) {
-      return Scaffold(
-        body: Row(
-          children: [
-            SafeArea(
-              child: NavigationRail(
-                extended: constraints.maxWidth >= 600,
-                destinations: [
-                  NavigationRailDestination(
-                    icon: Icon(Icons.home),
-                    label: Text('Home'),
-                  ),
-                  NavigationRailDestination(
-                    icon: Icon(Icons.favorite),
-                    label: Text('Favorites'),
-                  ),
-                ],
-                selectedIndex: selectedIndex,
-                onDestinationSelected: (value) {
-                  setState(() {
-                    selectedIndex = value;
-                  });
-                },
-              ),
-            ),
-            Expanded(
-              child: Container(
-                color: Theme.of(context).colorScheme.primaryContainer,
-                child: page,
-              ),
-            ),
-          ],
-        ),
-      );
-    });
+    return Scaffold(
+      body: Center(
+        child: _widgetOptions.elementAt(selectedIndex),
+      ),
+      bottomNavigationBar: BottomNavigationBar(
+        items: const <BottomNavigationBarItem>[
+          BottomNavigationBarItem(
+            icon: Icon(Icons.home),
+            label: 'Home',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.favorite),
+            label: 'Favorites',
+          ),
+        ],
+        currentIndex: selectedIndex,
+        selectedItemColor: Colors.deepOrange[600],
+        onTap: _onItemTapped,
+      ),
+    );
   }
 }
 
@@ -180,6 +170,7 @@ class BigCard extends StatelessWidget {
               ),
             ),
             IconButton(
+              color: theme.colorScheme.onPrimary,
               icon: Icon(Icons.copy),
               onPressed: () {
                 Clipboard.setData(ClipboardData(text: pair.asLowerCase));
@@ -195,27 +186,34 @@ class BigCard extends StatelessWidget {
 class FavoritesPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    var appState = context.watch<MyAppState>();
+    return Consumer<MyAppState>(
+      builder: (context, appState, child) {
+        var favorites = appState.favorites;
 
-    if (appState.favorites.isEmpty) {
-      return Center(
-        child: Text('No favorites yet.'),
-      );
-    }
+        if (favorites.isEmpty) {
+          return Center(
+            child: Text('No favorites yet.'),
+          );
+        }
 
-    return ListView(
-      children: [
-        Padding(
-          padding: const EdgeInsets.all(20),
-          child: Text('You have '
-              '${appState.favorites.length} favorites:'),
-        ),
-        for (var pair in appState.favorites)
-          ListTile(
-            leading: Icon(Icons.favorite),
-            title: Text(pair.asLowerCase),
-          ),
-      ],
+        return ListView.builder(
+          itemCount: favorites.length,
+          itemBuilder: (context, index) {
+            var pair = favorites[index];
+            return ListTile(
+              key: ValueKey(pair),
+              leading: Icon(Icons.favorite),
+              title: Text(pair.asLowerCase),
+              trailing: IconButton(
+                icon: Icon(Icons.delete),
+                onPressed: () {
+                  appState.removeFavorite(pair);
+                },
+              ),
+            );
+          },
+        );
+      },
     );
   }
 }
